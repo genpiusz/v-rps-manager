@@ -1,0 +1,1727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vagrant RPS Health</title>
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Emoji:wght@400;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Metamorphous&display=swap">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>⚔</text></svg>">
+    
+    <style>
+		/* --- Globalne Style --- */
+		body {
+			font-family: 'Lexend', sans-serif, 'Noto Emoji', sans-serif; /* Domyślna czcionka */
+			background-color: gainsboro; /* Jasnoszare tło strony */
+            padding: 10px;
+            padding-top: 60px; /* Odstęp od góry, aby zrobić miejsce na lepki nagłówek */
+		}
+
+        /* --- Lepki Nagłówek (górny pasek) --- */
+        #stickyHeader {
+            position: fixed; /* Trzyma się góry ekranu */
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex; /* Używa flexbox do wyrównania */
+            justify-content: space-between; /* Elementy na krawędziach */
+            align-items: center; /* Wyrównanie w pionie */
+            padding: 10px;
+            background-color: darkred; /* Ciemnoczerwone tło */
+            color: oldlace; /* Kremowy kolor tekstu */
+			box-shadow: 0 0 10px black; /* Cień pod nagłówkiem */
+            z-index: 1000; /* Zawsze na wierzchu */
+			max-height: 20px;
+        }
+        #stickyHeader h1 {
+            font-family: 'Metamorphous', serif; /* Specjalna czcionka dla tytułu */
+            max-width: 200px;
+            font-size: 16px; 
+			text-shadow: 0 0 4px black; /* Cień tekstu dla czytelności */
+            margin-left: auto;
+			margin-right: auto;
+            /* flex-grow: 1; */ /* Usunięte - marginesy auto są kluczem */
+            text-align: center; /* Wyśrodkowanie tekstu */
+            cursor: pointer; /* Kursor dłoni (sugeruje klikalność) */
+        }
+        #rollModeToggleHeader {
+            font-family: 'Lexend', sans-serif;
+            font-size: 14px;
+            font-weight: bold;
+			width: 80px;
+            background: transparent; /* Przezroczyste tło */
+			text-shadow: 0 0 4px black;
+            color: oldlace; 
+            border: none;
+            cursor: pointer;
+            padding: 0 10px;
+            position: absolute; /* Pozycjonowanie absolutne */
+            right: 10px; /* Po prawej stronie */
+            top: 50%; /* Na środku wysokości */
+            transform: translateY(-50%); /* Precyzyjne centrowanie w pionie */
+        }
+        
+        /* --- Globalne Kontrolki (pod nagłówkiem) --- */
+        #globalControls {
+            max-width: 410px; /* Maksymalna szerokość */
+            margin: 0 auto 10px auto; /* Centrowanie i odstęp dolny */
+            display: flex; 
+            flex-direction: column; /* Układ kolumnowy */
+            gap: 8px; /* Odstęp między wierszami */
+            padding: 10px;
+            border: 4px solid slategray; /* Szara ramka */
+            background-color: oldlace; /* Kremowe tło */
+            border-radius: 5px; /* Zaokrąglone rogi */
+            font-size: 14px;
+        }
+        
+        /* Wiersz kontrolek (flexbox) */
+        .controls-row {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+        }
+
+        /* Ukryty input do wczytywania plików */
+        .hidden-file-input { display: none; }
+
+        /* Styl bazowy dla przycisków globalnych i etykiet */
+        .global-button, 
+        .global-select-label {
+            font-family: 'Lexend', sans-serif;
+			color: oldlace; 
+			border: none;
+			padding: 6px 10px; 
+			border-radius: 4px;
+            cursor: pointer;
+            background-color: darkred; /* Ciemnoczerwone tło */
+            transition: background-color 0.1s; /* Płynne przejście koloru */
+            font-size: 14px;
+            text-align: center;
+		}
+        /* Efekt wciśnięcia przycisku */
+        .global-button:active { background-color: orange; }
+        
+        /* Lista rozwijana z szablonami */
+        #templateSelect {
+            font-family: 'Lexend', sans-serif;
+            font-size: 14px;
+            padding: 5px 8px;
+            border-radius: 4px;
+            background-color: oldlace; 
+            border: 1px solid slategray; 
+            width: 100%; 
+            box-sizing: border-box; /* Rozmiar wliczający ramkę */
+        }
+
+        /* Klasa dla przycisków, które mają rosnąć (np. LOAD, EXPORT) */
+        .flex-button {
+            flex-grow: 3; /* Rosną 3x szybciej niż .flex-button-small */
+            flex-basis: 0;
+            font-family: 'Lexend', sans-serif;
+        }
+        
+        /* Klasa dla małych przycisków ikonowych (np. ➕, 🗑) */
+        .flex-button-small {
+            flex-grow: 1; 
+            flex-basis: 0;
+            font-family: 'Noto Emoji', sans-serif;
+			color: oldlace;
+            font-size: 16px;
+        }
+        
+        /* Specjalny kolor dla przycisków Import/Export/Delete */
+        .import-export-btn {
+            background-color: slategray; 
+            color: oldlace; /* Upewnienie się, że kolor dla IMPORT/EXPORT/🗑️ jest oldlace */
+        }
+        
+        /* --- Style Kart Postaci --- */
+        .card {
+            max-width: 380px;
+            margin: 10px auto;
+            padding: 10px;
+            /* Ramka i cień są teraz ustawiane dynamicznie przez JS (style inline) */
+            background-color: oldlace;  
+            border-radius: 5px;
+            position: relative;
+        }
+        /* Domyślne wartości CSS (fallback), nadpisane w JS */
+        .card {
+            border: 4px solid steelblue;
+			box-shadow: 0 0 10px steelblue;
+        }
+
+
+        /* --- Nagłówek Karty (Przyciski góra/dół i nazwa) --- */
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px; 
+        }
+
+        /* Styl dla przycisków akcji (góra/dół, zapisz/usuń/itd.) */
+        .top-action-button {
+            font-family: 'Noto Emoji', sans-serif; /* Zapewnia Noto Emoji dla ikon */
+            font-size: 16px; 
+            background-color: transparent; /* Przezroczyste tło */
+            color: slategray; /* Kolor ikony */
+            border: none; 
+            border-radius: 0; /* Usunięto zaokrąglenie */
+            cursor: pointer;
+            padding: 0; /* Usunięto padding */
+            transition: color 0.1s; /* Płynne przejście kolorów */
+            flex-grow: 1; 
+            flex-basis: 0;
+        }
+        /* Efekt wciśnięcia przycisków akcji */
+        .top-action-button:active { 
+            background-color: transparent; /* Utrzymaj przezroczystość */
+            color: orange; /* Kolor kliknięcia */
+        }
+        /* Upewnienie się, że przyciski góra/dół mają swój własny padding, aby wyśrodkować je w nagłówku */
+        .card-buttons-left .top-action-button,
+        .card-buttons-top .top-action-button {
+            padding: 5px; 
+        }
+
+		/* --- Nazwa Postaci (Input/Display) --- */
+        .input-name {
+            flex-grow: 1; 
+			font-family: 'Lexend', sans-serif;
+            text-align: center;
+            margin: 0 5px; 
+            cursor: pointer; 
+            transition: background-color 0.1s, color 0.1s; 
+            border-radius: 5px; 
+        }
+        /* Input tekstowy (widoczny w trybie edycji) */
+		.input-name input[type="text"] {
+			border: 1px solid slategray; 
+			font-family: 'Lexend', sans-serif;
+
+			padding: 5px;
+			width: 100%; 
+			font-size: 18px;
+            box-sizing: border-box;
+		}
+        /* Ukrycie inputu w trybie zablokowanym */
+        .input-name.locked input[type="text"] { display: none; }
+        
+        /* Span wyświetlający nazwę (widoczny w trybie zablokowanym) */
+        .input-name .display-name {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 5px;
+            display: none; /* Domyślnie ukryty */
+            cursor: inherit; /* Dziedziczy kursor z rodzica */
+        }
+        /* Pokazanie spana w trybie zablokowanym */
+        .input-name.locked .display-name { 
+            display: block; 
+            cursor: pointer; 
+        }
+        /* Reset kursora, gdy edytujemy (tryb unlocked) */
+        .input-name:not(.locked) {
+            cursor: default; 
+        }
+        
+        /* --- Kolory tła/tekstu dla wyniku rzutu --- */
+        /* Pokazywane na .input-name, kolor dziedziczony przez .display-name */
+        .input-name.roll-fail { background-color: transparent; color: darkred; }
+        .input-name.roll-success { background-color: transparent; color: green; }
+        .input-name.roll-crit-fail { background-color: black; color: oldlace; } 
+        .input-name.roll-crit-success { background-color: orange; color: black; } 
+
+        /* --- Główne Kontrolki (Życie i Status) --- */
+        .control-row-main {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 10px 0;
+            padding: 0 10px;
+            gap: 4px; /* Odstępy między przyciskami */
+        }
+        /* Przyciski modyfikujące (np. +/- Trauma/Wound) i statusy */
+        .mod-button, .status-button {
+            font-family: 'Noto Emoji', sans-serif; 
+            background-color: darkred; 
+            color: oldlace; 
+            border: none;
+            padding: 0; 
+            border-radius: 50%; /* Okrągłe */
+            cursor: pointer;
+            font-size: 16px; 
+            width: 40px; /* Stała szerokość */
+            height: 40px; /* Stała wysokość */
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 2px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Lekki cień */
+            transition: background-color 0.1s;
+        }
+        /* Style dla aktywnych statusów */
+        .status-button.active { background-color: red; box-shadow: 0 0 10px red; }
+        .status-button.active.ice { background-color: dodgerblue; box-shadow: 0 0 10px dodgerblue; } 
+        .status-button.active.poison { background-color: green; box-shadow: 0 0 10px green; } 
+        
+        /* Pomarańczowy efekt kliknięcia tylko dla przycisków modyfikujących */
+        .mod-button:active { background-color: orange; box-shadow: 0 0 10px orange; }
+        
+        /* --- Pasek Życia (Health Bar) --- */
+        .health-bar-container {
+            flex-grow: 1; /* Zajmuje dostępną przestrzeń */
+            position: relative; /* Baza dla elementów absolutnych */
+            height: 18px;
+            background-color: darkred; /* Tło paska (reprezentuje obecne życie) */
+            border: 2px solid black;
+            overflow: hidden; /* Ukrywa to, co wystaje */
+            margin: 0 10px;
+            cursor: default; 
+        }
+        /* Wspólny styl dla pasków obrażeń (Trauma i Wound) */
+        .damage-bar { 
+            position: absolute; 
+            height: 100%; 
+            top: 0; 
+            right: 0; /* Zaczynają od prawej */
+            transition: width 0.3s ease; /* Płynna animacja zmiany szerokości */
+        }
+        .trauma-wound-bar { background-color: orange; z-index: 1; } /* Pasek Traumy (pomarańczowy) */
+        .wound-bar { background-color: oldlace; z-index: 2; } /* Pasek Rany (kremowy, na wierzchu) */
+        
+        /* Nakładka tekstowa na pasku życia */
+        .value-overlay {
+            position: absolute;
+            font-size: 16px;
+            font-weight: bold;
+            z-index: 3; /* Na samym wierzchu */
+            pointer-events: none; /* Ignoruje kliknięcia */
+            top: 50%;
+            transform: translateY(-50%); /* Centrowanie w pionie */
+            white-space: nowrap; /* Zapobiega łamaniu tekstu */
+        }
+        /* Wyświetlanie obecnego życia (po lewej) */
+        .current-vitality-display { 
+            left: 5px; 
+            color: oldlace; 
+            text-shadow: 0 0 3px black, 0 0 3px black; /* Cień dla czytelności */
+        } 
+        /* Wyświetlanie wartości Traumy (po prawej od Rany) */
+        .trauma-value-display { 
+            right: -4px; 
+            color: black; 
+            text-shadow: 0 0 3px oldlace, 0 0 3px oldlace; 
+        } 
+        /* Wyświetlanie wartości Rany (na prawej krawędzi) */
+        .wound-value-display { 
+            right: -4px; 
+            color: darkred; 
+            text-shadow: 0 0 3px oldlace, 0 0 3px oldlace; 
+        }
+        
+        /* --- Sekcja Atrybutów (rozwijana) --- */
+        .attribute-section {
+            display: none; /* Domyślnie ukryta */
+            padding: 10px 0 0 0;
+            border-top: 1px solid slategray; /* Linia oddzielająca */
+            margin-top: 10px;
+        }
+        .attribute-row {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: nowrap;
+            margin-bottom: 5px;
+            padding: 0 5px;
+        }
+        .attribute-item {
+            display: flex;
+            flex-direction: column; /* Układ pionowy (Label, Wartość/Input) */
+            align-items: center;
+            width: 19%; /* Szerokość, aby zmieścić 5 w rzędzie */
+            gap: 2px; 
+            font-size: 9px; /* Mała czcionka etykiety */
+            text-align: center;
+        }
+        .attribute-item label { font-weight: bold; line-height: 1.1; }
+        
+        /* Input (tryb edycji) i Span (tryb zablokowany) dla wartości atrybutu */
+        .attribute-item input[type="number"],
+        .attribute-item .attribute-value {
+            padding: 5px 2px; 
+            width: 100%;
+            font-size: 14px; 
+            font-weight: bold;
+            text-align: center;
+            border: 1px solid slategray; 
+            border-radius: 3px;
+            box-sizing: border-box; 
+            height: 40px; 
+        }
+        .attribute-item .attribute-value { 
+            border: 1px solid slategray; /* Przezroczysta ramka dla zachowania rozmiaru */
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Lekki cień */
+            border-radius: 3px;
+            font-size: 18px; 
+            display: flex; /* Do centrowania tekstu w pionie */
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* Efekt kliknięcia dla klikalnych atrybutów (do rzutu) */
+        .attribute-value.rollable:active { 
+            background-color: orange; 
+            cursor: pointer; 
+            border: 1px solid slategray; 
+        } 
+		.attribute-value.rollable:hover {
+            cursor: pointer;
+        } 
+        /* Ukrywanie inputu w trybie zablokowanym */
+        .attribute-item.locked input[type="number"] { display: none; }
+        /* Ukrywanie spana w trybie edycji (unlocked) */
+        .attribute-item:not(.locked) .attribute-value { display: none; }
+        
+        /* Kontener na przyciski akcji (Zapisz, Usuń, Edytuj itp.) */
+        .attribute-buttons {
+             display: flex;
+             /* justify-content: space-around; */ /* Usunięte na rzecz gap */
+             align-items: center; 
+             margin-top: 10px;
+             border-top: 1px solid slategray; 
+             padding-top: 10px;
+             gap: 5px; /* DODANO odstęp między przyciskami */
+        }
+        
+        /* --- Dziennik Rzutów (Roll Log) --- */
+        #rollLogContainer {
+            max-width: 410px;
+            margin: 20px auto 10px auto;
+            padding: 10px;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Lekki cień */
+            border: 4px solid slategray; 
+            background-color: oldlace; 
+            border-radius: 5px;
+        }
+        #rollLogContainer h3 {
+            margin-top: 0;
+            font-size: 16px;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Lekki cień */
+            border-bottom: 1px solid slategray; 
+            padding-bottom: 5px;
+        }
+        #rollLog {
+            max-height: 300px; /* Maksymalna wysokość, potem scroll */
+            overflow-y: auto; /* Włącza scrollowanie w pionie */
+            list-style: none; /* Bez kropek */
+            padding: 0;
+            margin: 0;
+            font-size: 12px;
+            
+            /* --- Stylizowanie paska przewijania --- */
+            scrollbar-color: gainsboro oldlace; /* Firefox */
+            scrollbar-width: thin;
+        }
+        /* Pasek przewijania dla Webkit (Chrome, Safari, Edge) */
+        #rollLog::-webkit-scrollbar {
+            width: 8px;
+        }
+        #rollLog::-webkit-scrollbar-track {
+            background: oldlace; /* Tło paska */
+        }
+        #rollLog::-webkit-scrollbar-thumb {
+            background-color: gainsboro; /* Uchwyt paska */
+            border-radius: 4px;
+        }
+        #rollLog::-webkit-scrollbar-thumb:hover {
+            background-color: red; /* Kolor uchwytu po najechaniu */
+        }
+        
+        #rollLog li {
+            padding: 3px 0;
+            border-bottom: 1px dotted slategray; /* Linia oddzielająca wpisy */
+        }
+        /* Kolory dla wyników rzutów w logu */
+        .log-crit-fail { color: black; font-weight: bold; }
+        .log-fail { color: darkred; }
+        .log-success { color: green; } 
+        .log-crit-success { color: orange; font-weight: bold; }
+        
+        /* --- Dolne Kontrolki (Heal All, Clear Scene) --- */
+        #bottomControls {
+            max-width: 430px;
+            margin: 10px auto;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Lekki cień */
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr; /* Trzy równe kolumny */
+            gap: 8px;
+        }
+        #bottomControls .global-button {
+            background-color: slategray; /* Szare tło */
+            font-size: 12px;
+        }
+        /* Stopka */
+        #footer {
+            max-width: 400px;
+            margin: 15px auto 10px auto;
+            text-align: center;
+            font-size: 10px;
+            color: slategray;
+            font-family: 'Lexend', sans-serif;
+        }
+        
+    </style>
+</head>
+<body>
+    
+    <div id="stickyHeader">
+        <h1 onclick="showInfo()" title="Vagrant RPS Info">VAGRANT RPS</h1>
+        <button id="rollModeToggleHeader" onclick="toggleRollMode()" title="Roll Mode Toggle">d12</button>
+    </div>
+
+    <div id="globalControls">
+        <div class="controls-row">
+            <select id="templateSelect" title="Select Template for 'NEW' (➕) or 'Apply' (✨)"></select>
+        </div>
+        
+        <div class="controls-row">
+            <button id="newCharButton" class="global-button flex-button-small" onclick="applyTemplateToNewCharacter()" title="New Character (using selected template)">✨</button>
+            
+            <button class="global-button flex-button" onclick="document.getElementById('importFileAllHidden').click()" title="Load character(s): single (adds) or scene (replaces)">LOAD</button>
+            <input type="file" id="importFileAllHidden" class="hidden-file-input" accept=".json" onchange="importAllCharacters(event)">
+            
+            <button class="global-button import-export-btn flex-button" onclick="document.getElementById('importFileTemplatesHidden').click()" title="Import Templates from a file">IMPORT</button>
+            <input type="file" id="importFileTemplatesHidden" class="hidden-file-input" accept=".json" onchange="importTemplates(event)">
+
+            <button class="global-button import-export-btn flex-button" onclick="exportCharacters()" title="Export all characters">EXPORT</button>
+            
+            <button id="deleteTemplateButton" class="global-button flex-button-small" onclick="deleteSelectedTemplate()" title="Delete selected user template">🗑</button>
+        </div>
+    </div>
+
+    <div id="characterContainer">
+        </div>
+
+    <div id="bottomControls">
+        <button class="global-button" onclick="healAll()" title="Heal all Trauma/Wounds">HEAL ALL</button>
+        <button class="global-button" onclick="clearAll()" title="Delete all characters">CLEAR SCENE</button>
+        <button class="global-button" onclick="resetPage()" title="Reset all data (characters and templates)">RESET PAGE</button>
+    </div>
+
+
+    <div id="rollLogContainer">
+        <h3>🎲 Roll Log</h3>
+        <ul id="rollLog">
+            </ul>
+    </div>
+
+    <div id="footer">
+        Vagrant RPS by Genpiusz 2025, All rights reserved
+    </div>
+
+    <script>
+        // --- ZMIENNE GLOBALNE I KONFIGURACJA ---
+        const LOCAL_STORAGE_KEY = 'allCharacters'; // Klucz do zapisu postaci w localStorage
+        const VAGRANT_TEMPLATES_KEY = 'vagrantTemplates'; // Klucz do zapisu szablonów użytkownika
+        const DEFAULT_VITALITY = 12; // Domyślna Witalność
+        const DEFAULT_TRAUMA = 0; // Domyślna Trauma
+        const DEFAULT_WOUND = 0; // Domyślna Rana
+        
+        // Kolory obramowania karty do przełączania
+        const CARD_COLORS = ['slategray', 'dodgerblue', 'green', 'red'];
+        
+        // Domyślne wartości atrybutów dla nowej, pustej postaci
+        const DEFAULT_ATTRIBUTES = {
+            perception: 0, strength: 0, dexterity: 0, agility: 0, armor: 0, 
+            charisma: 0, potential: 0, stability: 0, reason: 0,
+            editMode: 'locked' // Domyślny tryb edycji
+        };
+
+        // Domyślne szablony postaci, dostępne na starcie
+        const DEFAULT_TEMPLATES = {
+            'New Character': {
+                name: 'New Character', 
+                vitality: 12,
+                perception: 0, strength: 0, dexterity: 0, agility: 0, armor: 0, 
+                charisma: 0, potential: 0, stability: 0, reason: 0,
+            },
+            'Knight': {
+                name: 'Sir Reginald', vitality: 15, perception: 1, strength: 3, dexterity: 1, agility: 2, 
+                armor: 4, charisma: 1, potential: 0, stability: 3, reason: 1
+            },
+            'Bandit': {
+                name: 'Shifty Pete', vitality: 12, perception: 2, strength: 2, dexterity: 2, agility: 3, 
+                armor: 1, charisma: -1, potential: 0, stability: 1, reason: 0
+            },
+            'Villager': {
+                name: 'Simple John', vitality: 10, perception: 1, strength: 1, dexterity: 0, agility: 0, 
+                armor: 0, charisma: 1, potential: 0, stability: 2, reason: 1
+            },
+            'Merchant': {
+                name: 'Trader Bob', vitality: 10, perception: 2, strength: 0, dexterity: 1, agility: 0, 
+                armor: 0, charisma: 3, potential: 0, stability: 2, reason: 2
+            },
+            'Cleric': {
+                name: 'Brother Michael', vitality: 13, perception: 1, strength: 1, dexterity: 0, agility: 0, 
+                armor: 2, charisma: 2, potential: 1, stability: 3, reason: 3
+            },
+            'Servant': {
+                name: 'Scrub Jane', vitality: 11, perception: 0, strength: 0, dexterity: 1, agility: 1, 
+                armor: 0, charisma: 0, potential: 0, stability: 2, reason: 0
+            },
+            'Mage': {
+                name: 'Wizard Tim', vitality: 9, perception: 2, strength: -1, dexterity: 1, agility: 0, 
+                armor: 0, charisma: 1, potential: 3, stability: 0, reason: 4
+            }
+        };
+
+        // Obiekt przechowujący połączone szablony (domyślne + użytkownika)
+        let TEMPLATES = {};
+
+        // Główna tablica przechowująca wszystkie postacie na scenie
+        let allCharacters = [];
+        // Globalny tryb rzutu kością
+        let rollMode = 'd12'; // 'd12', '2d12A' (Advantage), '2d12D' (Disadvantage)
+
+        // --- RDZEŃ LOGIKI RZUTÓW KOŚCIĄ ---
+
+        /**
+         * Generuje rzuty kością w zależności od globalnego trybu (rollMode).
+         * @returns {object} Obiekt zawierający rzuty, wybrany rzut i tekst do wyświetlenia.
+         */
+        function getDiceRolls() {
+            const d1 = Math.floor(Math.random() * 12) + 1; // Pierwszy rzut k12
+            const d2 = Math.floor(Math.random() * 12) + 1; // Drugi rzut k12
+            
+            if (rollMode === 'd12') {
+                // Tryb standardowy: 1k12
+                return { rolls: [d1], selectedRoll: d1, displayRolls: `${d1}` };
+            } else if (rollMode === '2d12A') {
+                // Tryb Advantage: 2k12, wybierz wyższy
+                const selected = Math.max(d1, d2);
+                return { rolls: [d1, d2], selectedRoll: selected, displayRolls: `${d1}/${d2}A` }; // Dodano 'A'
+            } else if (rollMode === '2d12D') {
+                // Tryb Disadvantage: 2k12, wybierz niższy
+                const selected = Math.min(d1, d2);
+                return { rolls: [d1, d2], selectedRoll: selected, displayRolls: `${d1}/${d2}D` }; // Dodano 'D'
+            }
+        }
+        
+        /**
+         * Oblicza wynik rzutu, określa sukces/porażkę i klasy CSS.
+         * @param {number[]} rolls - Tablica rzutów (np. [1, 5]).
+         * @param {number} selectedRoll - Rzut wybrany (np. 5).
+         * @param {number} attributeValue - Modyfikator z atrybutu.
+         * @returns {object} Obiekt z wynikiem, klasami CSS i znakiem (+/-).
+         */
+        function getRollResult(rolls, selectedRoll, attributeValue) {
+            const result = selectedRoll + attributeValue; // Suma rzutu i atrybutu
+            let logClass = ''; // Klasa CSS dla logu
+            let resultClass = ''; // Klasa CSS dla nazwy postaci
+            
+            let isCritSuccess = selectedRoll === 12; // Czy krytyczny sukces?
+            let isCritFail = selectedRoll === 1; // Czy krytyczna porażka?
+
+            // Specjalne zasady dla Advantage/Disadvantage
+            if (rollMode === '2d12A' && rolls.includes(1)) {
+                isCritFail = false; // Mając A, 1 nie jest auto-porażką
+            }
+            if (rollMode === '2d12D' && rolls.includes(12)) {
+                isCritSuccess = false; // Mając D, 12 nie jest auto-sukcesem
+            }
+
+            // Przypisanie klas na podstawie wyniku
+            if (isCritFail) {
+                logClass = 'log-crit-fail';
+                resultClass = 'roll-crit-fail'; 
+            } else if (isCritSuccess) {
+                logClass = 'log-crit-success';
+                resultClass = 'roll-crit-success';
+            } else if (result >= 8) {
+                // Sukces (wynik 8+)
+                logClass = 'log-success';
+                resultClass = 'roll-success'; 
+            } else { 
+                // Porażka (wynik < 8)
+                logClass = 'log-fail';
+                resultClass = 'roll-fail'; 
+            }
+
+            const sign = attributeValue >= 0 ? '+' : ''; // Znak plus dla dodatnich atrybutów
+            
+            return { result, logClass, resultClass, sign };
+        }
+        
+        /**
+         * Wykonuje rzut na atrybut dla konkretnej postaci.
+         * @param {number} index - Indeks postaci w tablicy allCharacters.
+         * @param {string} attributeName - Nazwa atrybutu (np. 'strength').
+         */
+        function rollDice(index, attributeName) {
+            let char = allCharacters[index];
+            if (!char) return;
+
+            // Nie można rzucać na Witalność ani Pancerz
+            if (attributeName === 'vitality' || attributeName === 'armor') { return; }
+
+            const attributeValue = parseInt(char[attributeName]) || 0;
+            const nameContainer = document.getElementById(`inputNameContainer-${index}`);
+            const displayNameSpan = document.getElementById(`displayName-${index}`);
+            const originalName = char.name;
+            
+            // Pobranie rzutu i wyniku
+            const { rolls, selectedRoll, displayRolls } = getDiceRolls();
+            const { result, logClass, resultClass, sign } = getRollResult(rolls, selectedRoll, attributeValue);
+            
+            // Formatowanie tekstu dla logu (usuwamy A/D z displayRolls, bo jest już w logClass)
+            let displayRollsForFormat = displayRolls.replace('A', '').replace('D', '');
+            
+            // Pobranie etykiety atrybutu (np. "STRENGTH")
+            const attributeSpan = document.getElementById(`${attributeName}ValueDisplay-${index}`);
+            const labelElement = attributeSpan.closest('.attribute-item').querySelector('label');
+            const attributeLabel = labelElement.title.split('(')[0].trim().toUpperCase();
+            
+            // Wiadomość do wyświetlenia na karcie postaci
+            // Używamy pełnego rzutu (displayRolls) z A/D (np. '5/8A')
+            const calculation = `${displayRolls}${sign}${attributeValue}`;
+            const rollMessage = `${attributeLabel}: ${result} (${calculation})`; 
+
+            // Reset klas i wyświetlanie wyniku
+            nameContainer.classList.remove('roll-fail', 'roll-success', 'roll-crit-fail', 'roll-crit-success');
+            
+            displayNameSpan.textContent = rollMessage;
+            nameContainer.classList.add(resultClass); // Dodanie klasy (np. .roll-success)
+            displayNameSpan.style.textShadow = ''; // Reset cienia tekstu
+
+            // Dodanie wpisu do logu
+            const logEntry = document.createElement('li');
+            logEntry.textContent = `${originalName} - ${attributeLabel}: ${result} (${displayRolls.replace('/', '/')}${sign}${attributeValue})`; 
+            logEntry.classList.add(logClass);
+            
+            const rollLog = document.getElementById('rollLog');
+            rollLog.prepend(logEntry); // Dodanie na górze logu
+            
+            // Timer resetujący wyświetlanie wyniku rzutu
+            setTimeout(() => {
+                if (displayNameSpan.textContent === rollMessage) {
+                     displayNameSpan.textContent = originalName; // Powrót do nazwy
+                     nameContainer.classList.remove('roll-fail', 'roll-success', 'roll-crit-fail', 'roll-crit-success');
+                }
+            }, 5000); // Po 5 sekundach
+        }
+
+        /**
+         * Wykonuje "płaski" rzut (bez atrybutu) dla postaci.
+         * @param {number} index - Indeks postaci.
+         */
+        function flatRoll(index) {
+            let char = allCharacters[index];
+            if (!char) return;
+
+            const nameContainer = document.getElementById(`inputNameContainer-${index}`);
+            const displayNameSpan = document.getElementById(`displayName-${index}`);
+            const originalName = char.name;
+
+            // Rzut i wynik (bez atrybutu)
+            const { rolls, selectedRoll, displayRolls } = getDiceRolls();
+            const { result, logClass, resultClass } = getRollResult(rolls, selectedRoll, 0); // Atrybut = 0
+            
+            const rollTypePrefix = rollMode.toUpperCase().replace('2D12', 'FLAT'); 
+            // Używamy pełnego rzutu (displayRolls) z A/D (np. '5/8A')
+            const rollMessage = `${rollTypePrefix}: ${result} (${displayRolls})`; 
+
+            // Wyświetlanie wyniku
+            nameContainer.classList.remove('roll-fail', 'roll-success', 'roll-crit-fail', 'roll-crit-success');
+            displayNameSpan.textContent = rollMessage;
+            nameContainer.classList.add(resultClass);
+            displayNameSpan.style.textShadow = ''; // Reset cienia
+
+            // Timer resetujący
+            setTimeout(() => {
+                if (displayNameSpan.textContent === rollMessage) {
+                     displayNameSpan.textContent = originalName;
+                     nameContainer.classList.remove('roll-fail', 'roll-success', 'roll-crit-fail', 'roll-crit-success');
+                }
+            }, 5000); 
+
+            // Dodanie do logu (usuwamy A/D z displayRolls dla logu, bo już jest w rollTypePrefix)
+            const logEntry = document.createElement('li');
+            const displayRollsForLog = displayRolls.replace('A', '').replace('D', ''); // Log bez A/D
+            logEntry.textContent = `${char.name} - ${rollTypePrefix}: ${result} (${displayRollsForLog})`;
+            logEntry.classList.add(logClass);
+            
+            const rollLog = document.getElementById('rollLog');
+            rollLog.prepend(logEntry);
+        }
+
+        /**
+         * Przełącza globalny tryb rzutu (d12 -> 2d12A -> 2d12D -> d12).
+         */
+        function toggleRollMode() {
+            if (rollMode === 'd12') {
+                rollMode = '2d12A';
+            } else if (rollMode === '2d12A') {
+                rollMode = '2d12D';
+            } else {
+                rollMode = 'd12';
+            }
+            
+            // Aktualizacja tekstu na przycisku w nagłówku
+            document.querySelectorAll('#rollModeToggleHeader').forEach(el => {
+                el.textContent = rollMode.replace('2d12', 'd12'); // Wyświetlanie "d12A" lub "d12D"
+            });
+        }
+        
+        /**
+         * Zaznacza całą zawartość elementu input.
+         * @param {HTMLElement} inputElement - Element input do zaznaczenia.
+         */
+        function selectContent(inputElement) {
+            inputElement.select();
+        }
+
+
+        // --- RDZEŃ LOGIKI POSTACI ---
+        
+        /**
+         * Aktualizuje wizualny pasek życia (health bar) dla postaci.
+         * @param {number} charIndex - Indeks postaci.
+         */
+        function updateHealthBar(charIndex) {
+            let char = allCharacters[charIndex];
+            if (!char) return;
+
+            // Walidacja wartości (Witalność min 1, Trauma/Rana min 0)
+            const vitality = Math.max(parseInt(char.vitality) || 0, 1);
+            let trauma = parseInt(char.trauma) || 0;
+            let wound = parseInt(char.wound) || 0;
+            
+            trauma = Math.max(0, trauma);
+            wound = Math.max(0, wound);
+            
+            // Logika zapobiegania przekroczeniu Witalności przez obrażenia
+            const totalDamage = trauma + wound;
+            if (totalDamage > vitality) {
+                const excess = totalDamage - vitality; // Ile obrażeń jest za dużo
+                char.wound = Math.max(0, wound - excess); // Redukuj Rany
+                const newTotalDamage = char.trauma + char.wound;
+                if (newTotalDamage > vitality) {
+                    // Jeśli Trauma sama przekracza, zredukuj Ranę do 0 (Trauma ma priorytet)
+                    char.wound = vitality - char.trauma;
+                }
+            }
+            
+            trauma = char.trauma;
+            wound = char.wound;
+
+            // Obliczenia procentowe dla pasków
+            const traumaWoundPercentage = ((trauma + wound) / vitality) * 100;
+            const woundPercentage = (wound / vitality) * 100;
+            const currentVitality = vitality - (trauma + wound); // Obecne życie
+
+            // Pobranie elementów DOM
+            const traumaWoundBar = document.getElementById(`traumaWoundBar-${charIndex}`);
+            const woundBar = document.getElementById(`woundBar-${charIndex}`);
+            const traumaDisplay = document.getElementById(`traumaValueDisplay-${charIndex}`);
+            const woundDisplay = document.getElementById(`woundValueDisplay-${charIndex}`);
+            const currentVitalityDisplay = document.getElementById(`currentVitalityDisplay-${charIndex}`);
+            
+            if (!traumaWoundBar) return; // Zabezpieczenie (jeśli karta nie istnieje)
+
+            // Ustawienie szerokości pasków
+            traumaWoundBar.style.width = traumaWoundPercentage + '%';
+            woundBar.style.width = woundPercentage + '%';
+            
+            // Wyświetlanie obecnej Witalności (po lewej)
+            if (currentVitality > 0) {
+                currentVitalityDisplay.style.display = 'block';
+                currentVitalityDisplay.textContent = currentVitality;
+            } else {
+                currentVitalityDisplay.style.display = 'none'; // Ukryj, jeśli 0 lub mniej
+            }
+
+            // Wyświetlanie wartości Traumy (między paskiem Witalności a Ran)
+            if (trauma > 0) {
+                traumaDisplay.style.display = 'block';
+                traumaDisplay.textContent = ` ${trauma} `; 
+                const woundRightPercentage = woundPercentage;
+                traumaDisplay.style.right = `${woundRightPercentage}%`; // Pozycjonowanie
+                traumaDisplay.style.transform = `translate(-100%, -50%)`; 
+            } else {
+                traumaDisplay.style.display = 'none';
+            }
+            
+            // Wyświetlanie wartości Rany (ikona kropli, po prawej)
+             if (wound > 0) {
+                woundDisplay.style.display = 'block';
+                woundDisplay.textContent = wound === 1 ? '🩸' : `${wound}🩸`;
+            } else {
+                woundDisplay.style.display = 'none';
+            }
+            
+            saveAllCharacters(); // Zapis po każdej zmianie
+        }
+
+        /**
+         * Zmienia wartość Traumy lub Rany (obsługuje przyciski +/-).
+         * @param {number} index - Indeks postaci.
+         * @param {string} id - 'trauma' lub 'wound'.
+         * @param {number} delta - Zmiana (+1 lub -1).
+         */
+        function changeValue(index, id, delta) {
+            let char = allCharacters[index];
+            if (!char) return;
+            
+            const vitality = parseInt(char.vitality);
+            let trauma = parseInt(char.trauma);
+            let wound = parseInt(char.wound);
+            
+            if (id === 'wound') {
+                // Zmiana Rany
+                let newWound = Math.max(0, wound + delta);
+                
+                if (delta > 0) { // Jeśli dodajemy Ranę
+                    let totalDamage = newWound + trauma;
+                    if (totalDamage > vitality) {
+                        // Jeśli przekracza, redukujemy Traumę, aby zmieścić Ranę
+                        const excess = totalDamage - vitality;
+                        trauma = Math.max(0, trauma - excess);
+                        newWound = Math.min(newWound, vitality - trauma);
+                    }
+                }
+                char.trauma = Math.min(vitality, trauma);
+                char.wound = Math.min(vitality - char.trauma, newWound); 
+
+            } else if (id === 'trauma') {
+                // Zmiana Traumy
+                let newTrauma = Math.max(0, trauma + delta);
+                
+                if (delta > 0) { // Jeśli dodajemy Traumę
+                    const currentTotalDamage = trauma + wound;
+                    
+                    if (currentTotalDamage >= vitality) {
+                        // Jeśli już mamy max obrażeń, nie dodajemy więcej Traumy
+                        if (newTrauma > trauma) { 
+                            newTrauma = trauma; 
+                        }
+                    } else {
+                        // Jeśli jest miejsce, ale przekroczy...
+                        let totalDamage = newTrauma + wound;
+                        if (totalDamage > vitality) {
+                            // Redukujemy Rany, aby zmieścić Traumę
+                            const excess = totalDamage - vitality;
+                            wound = Math.max(0, wound - excess);
+                            newTrauma = vitality - wound; // Trauma wypełnia resztę
+                        }
+                    }
+                }
+                
+                char.trauma = Math.min(vitality, newTrauma);
+                char.wound = Math.min(vitality - char.trauma, wound);
+            }
+            
+            // Ostateczna walidacja, aby suma nie przekroczyła Witalności
+            const currentTotalDamage = char.trauma + char.wound;
+            if (currentTotalDamage > vitality) {
+                char.wound = Math.max(0, char.wound - (currentTotalDamage - vitality));
+            }
+
+            updateHealthBar(index); // Aktualizacja paska
+        }
+        
+        /**
+         * Aktualizuje nazwę postaci po wpisaniu w input.
+         * @param {number} index - Indeks postaci.
+         * @param {HTMLElement} inputElement - Element input.
+         */
+        function updateName(index, inputElement) {
+            let char = allCharacters[index];
+            if (char) {
+                char.name = inputElement.value;
+                document.getElementById(`displayName-${index}`).textContent = char.name; // Aktualizacja spana
+                saveAllCharacters();
+            }
+        }
+
+        /**
+         * Aktualizuje atrybut postaci po wpisaniu w input.
+         * @param {number} index - Indeks postaci.
+         * @param {string} attribute - Nazwa atrybutu.
+         * @param {HTMLElement} inputElement - Element input.
+         */
+        function updateAttribute(index, attribute, inputElement) {
+            let char = allCharacters[index];
+            if (char) {
+                char[attribute] = parseInt(inputElement.value) || 0;
+                
+                // Aktualizacja spana wyświetlającego (w trybie locked)
+                const attrSpan = document.getElementById(`${attribute}ValueDisplay-${index}`);
+                if (attrSpan) {
+                    const isSigned = (attribute !== 'vitality' && attribute !== 'armor');
+                    const sign = isSigned && char[attribute] >= 0 ? '+' : ''; // Dodanie plusa
+                    
+                    attrSpan.textContent = `${sign}${char[attribute]}`;
+                }
+
+                if (attribute === 'vitality') {
+                    updateHealthBar(index); // Przeliczenie paska życia
+                }
+
+                saveAllCharacters();
+            }
+        }
+        
+        /**
+         * Przełącza status (Ogień, Lód, Trucizna).
+         * @param {number} index - Indeks postaci.
+         * @param {string} status - Nazwa statusu ('fire', 'ice', 'poison').
+         */
+        function toggleStatus(index, status) {
+            let char = allCharacters[index];
+            if (char) {
+                const statusKey = `status${status.charAt(0).toUpperCase() + status.slice(1)}`; // Np. 'statusFire'
+                char[statusKey] = char[statusKey] === 'on' ? 'off' : 'on'; // Przełączenie
+                saveAllCharacters();
+                
+                // Aktualizacja wyglądu przycisku
+                const btn = document.getElementById(`btn-${status}-${index}`);
+                btn.classList.remove('fire', 'ice', 'poison', 'active');
+                
+                if (char[statusKey] === 'on') {
+                    btn.classList.add('active', status); // Dodanie klas aktywnych
+                }
+            }
+        }
+        
+        /**
+         * Przesuwa kartę postaci w górę lub w dół.
+         * @param {number} index - Obecny indeks postaci.
+         * @param {number} direction - Kierunek (-1 = góra, +1 = dół).
+         */
+        function moveCharacter(index, direction) {
+            const newIndex = index + direction;
+            // Sprawdzenie, czy nowy indeks jest w granicach tablicy
+            if (newIndex >= 0 && newIndex < allCharacters.length) {
+                // Zamiana miejscami w tablicy
+                [allCharacters[index], allCharacters[newIndex]] = [allCharacters[newIndex], allCharacters[index]];
+                saveAllCharacters();
+                renderAllCharacters(); // Przerenderowanie wszystkich kart
+            }
+        }
+        
+        /**
+         * Rozwija lub zwija sekcję atrybutów.
+         * @param {number} index - Indeks postaci.
+         */
+        function toggleAttributeSection(index) {
+            let char = allCharacters[index];
+            if (!char || char.editMode !== 'locked') return; // Działa tylko w trybie locked
+
+            const section = document.getElementById(`attributeSection-${index}`);
+            const isVisible = section.style.display === 'block';
+
+            if (isVisible) {
+                // Jeśli zamykamy, automatycznie blokujemy edycję
+                toggleEditMode(index, 'locked'); 
+                section.style.display = 'none';
+            } else {
+                section.style.display = 'block';
+            }
+        }
+        
+        /**
+         * Przełącza tryb edycji (zablokowany/odblokowany).
+         * @param {number} index - Indeks postaci.
+         * @param {string} [mode='toggle'] - 'toggle', 'locked', lub 'unlocked'.
+         */
+        function toggleEditMode(index, mode = 'toggle') {
+            let char = allCharacters[index];
+            let newMode = char.editMode;
+
+            // Ustalenie nowego trybu
+            if (mode === 'toggle') {
+                newMode = char.editMode === 'locked' ? 'unlocked' : 'locked';
+            } else if (mode === 'locked' || mode === 'unlocked') {
+                newMode = mode;
+            }
+            
+            char.editMode = newMode;
+            saveAllCharacters();
+
+            // Aktualizacja elementów DOM
+            const lockButton = document.getElementById(`editModeToggle-${index}`);
+            const nameContainer = document.getElementById(`inputNameContainer-${index}`);
+            const attributeInputs = document.querySelectorAll(`#attributeSection-${index} .attribute-item`);
+            
+            if (lockButton) { 
+                lockButton.textContent = newMode === 'locked' ? '🔒' : '🔓'; // Zmiana ikony
+            }
+            
+            // Dodanie/usunięcie klas .locked
+            if (newMode === 'locked') {
+                nameContainer.classList.add('locked');
+                attributeInputs.forEach(item => item.classList.add('locked'));
+            } else {
+                nameContainer.classList.remove('locked');
+                attributeInputs.forEach(item => item.classList.remove('locked'));
+            }
+        }
+        
+        /**
+         * Zmienia kolor obramowania karty (cyklicznie).
+         * @param {number} index - Indeks postaci.
+         */
+        function toggleCardColor(index) {
+            let char = allCharacters[index];
+            if (!char) return;
+
+            // Pobranie obecnego indeksu koloru (lub 0, jeśli nie istnieje)
+            let currentIndex = parseInt(char.cardColorIndex) || 0;
+            
+            // Przejście do następnego koloru
+            currentIndex = (currentIndex + 1) % CARD_COLORS.length;
+            char.cardColorIndex = currentIndex;
+            
+            const newColor = CARD_COLORS[currentIndex];
+            const cardElement = document.querySelector(`.card[data-index="${index}"]`);
+            
+            // Zastosowanie nowego koloru (border i shadow)
+            if (cardElement) {
+                cardElement.style.borderColor = newColor;
+                cardElement.style.boxShadow = `0 0 10px ${newColor}`;
+            }
+
+            saveAllCharacters();
+        }
+
+
+        // --- LOGIKA SZABLONÓW (TEMPLATES) ---
+        
+        /**
+         * Ładuje domyślne szablony i łączy je z szablonami zapisanymi w localStorage.
+         */
+        function loadAndMergeTemplates() {
+            // Głęboka kopia domyślnych szablonów
+            TEMPLATES = JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
+            
+            try {
+                // Próba wczytania szablonów użytkownika
+                const savedTemplates = JSON.parse(localStorage.getItem(VAGRANT_TEMPLATES_KEY));
+                if (savedTemplates) {
+                    // Połączenie/nadpisanie domyślnych przez szablony użytkownika
+                    Object.assign(TEMPLATES, savedTemplates);
+                }
+            } catch (e) {
+                console.error("Error loading templates from localStorage:", e);
+                // W razie błędu, wracamy tylko do domyślnych
+                TEMPLATES = JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
+            }
+        }
+
+        /**
+         * Wypełnia listę rozwijaną (select) dostępnymi szablonami.
+         */
+        function populateTemplateSelect() {
+            const select = document.getElementById('templateSelect');
+            if (!select) return;
+            
+            select.innerHTML = ''; // Wyczyść listę
+            
+            // Upewnij się, że "New Character" jest zawsze na górze
+            const defaultTemplateName = 'New Character';
+            if (TEMPLATES[defaultTemplateName]) {
+                const option = document.createElement('option');
+                option.value = defaultTemplateName;
+                option.textContent = defaultTemplateName;
+                select.appendChild(option);
+            }
+            
+            // Dodaj resztę szablonów, posortowanych alfabetycznie
+            Object.keys(TEMPLATES)
+                .filter(key => key !== defaultTemplateName) // Oprócz "New Character"
+                .sort() // Sortuj
+                .forEach(key => {
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = key;
+                    select.appendChild(option);
+                });
+            
+            select.value = defaultTemplateName; // Ustaw domyślnie na "New Character"
+        }
+        
+        /**
+         * Tworzy nową postać na podstawie wybranego szablonu.
+         */
+        function applyTemplateToNewCharacter() {
+            const select = document.getElementById('templateSelect');
+            const templateName = select.value || 'New Character'; 
+            
+            const template = TEMPLATES[templateName];
+            createNewCharacter(template); // Funkcja tworząca postać
+        }
+
+        /**
+         * Stosuje wybrany szablon do ISTNIEJĄCEJ postaci (po potwierdzeniu).
+         * @param {number} index - Indeks postaci do nadpisania.
+         */
+        function applyTemplateConfirmation(index) {
+            const select = document.getElementById('templateSelect');
+            const templateName = select.value;
+
+            if (templateName === "") {
+                alert("Please select a template from the Global Controls section first.");
+                return;
+            }
+            
+            if (confirm(`Are you sure you want to apply the "${templateName}" template to this character? This will overwrite its attributes, vitality, trauma, and wounds.`)) {
+                const template = TEMPLATES[templateName];
+                
+                // Lista atrybutów do skopiowania z szablonu
+                const attributesToApply = {
+                    vitality: template.vitality,
+                    perception: template.perception,
+                    strength: template.strength,
+                    dexterity: template.dexterity,
+                    agility: template.agility,
+                    armor: template.armor,
+                    charisma: template.charisma,
+                    potential: template.potential,
+                    stability: template.stability,
+                    reason: template.reason
+                };
+
+                let char = allCharacters[index];
+                Object.assign(char, attributesToApply); // Nadpisanie atrybutów postaci
+                
+                // Reset obrażeń, trybu edycji i koloru
+                char.trauma = 0;
+                char.wound = 0;
+                char.editMode = 'locked'; 
+                char.cardColorIndex = 0; // Reset koloru do domyślnego
+
+                saveAllCharacters();
+                renderAllCharacters(); // Przerenderowanie sceny
+            }
+        }
+        
+        /**
+         * Importuje szablony z pliku JSON.
+         * Plik może być plikiem zapisu sceny (tablica) lub pojedynczej postaci.
+         * @param {Event} event - Zdarzenie 'onchange' z inputu pliku.
+         */
+        function importTemplates(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = e.target.result;
+                    const parsedData = JSON.parse(data); 
+                    
+                    let importedTemplates = {};
+
+                    // Logika parsowania (dla tablicy lub obiektu)
+                    if (Array.isArray(parsedData)) {
+                        // Plik zapisu sceny (wiele postaci)
+                        parsedData.forEach(char => {
+                            if (char.name && char.vitality) {
+                                let templateName = char.name;
+                                // Usuń dane specyficzne dla instancji (obrażenia, statusy)
+                                delete char.trauma;
+                                delete char.wound;
+                                delete char.statusFire;
+                                delete char.statusIce;
+                                delete char.statusPoison;
+                                importedTemplates[templateName] = char;
+                            }
+                        });
+                    } else if (parsedData && typeof parsedData === 'object' && parsedData.name && parsedData.vitality) {
+                        // Plik zapisu pojedynczej postaci
+                        let char = parsedData;
+                        let templateName = char.name;
+                        delete char.trauma;
+                        delete char.wound;
+                        delete char.statusFire;
+                        delete char.statusIce;
+                        delete char.statusPoison;
+                        importedTemplates[templateName] = char;
+                    } else {
+                        throw new Error('Invalid file format. Must be a "Save All" file or a single character file.');
+                    }
+
+                    Object.assign(TEMPLATES, importedTemplates); // Dodaj nowe szablony do globalnego obiektu
+                    localStorage.setItem(VAGRANT_TEMPLATES_KEY, JSON.stringify(TEMPLATES)); // Zapisz w localStorage
+                    populateTemplateSelect(); // Odśwież listę
+                    alert(`Templates imported successfully (${Object.keys(importedTemplates).length})!`);
+
+                } catch (error) {
+                    alert('Loading error: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Wyczyść input pliku
+        }
+        
+        /**
+         * NOWA FUNKCJA: Usuwa wybrany szablon z listy (tylko szablony użytkownika).
+         */
+        function deleteSelectedTemplate() {
+            const select = document.getElementById('templateSelect');
+            const templateName = select.value;
+
+            // Zabezpieczenie przed usunięciem 'New Character'
+            if (templateName === 'New Character') {
+                alert("Cannot delete the default 'New Character' template.");
+                return;
+            }
+            
+            // Zabezpieczenie przed usunięciem innych domyślnych szablonów
+            if (DEFAULT_TEMPLATES.hasOwnProperty(templateName)) {
+                 alert(`Cannot delete the default template: "${templateName}".`);
+                 return;
+            }
+
+            // Jeśli dotarliśmy tutaj, jest to szablon dodany przez użytkownika
+            if (confirm(`Are you sure you want to delete the user template: "${templateName}"?`)) {
+                let savedTemplates = JSON.parse(localStorage.getItem(VAGRANT_TEMPLATES_KEY)) || {};
+                
+                let deleted = false;
+                // Usuń z obiektu w pamięci
+                if (TEMPLATES.hasOwnProperty(templateName)) {
+                    delete TEMPLATES[templateName]; 
+                    deleted = true;
+                }
+                
+                // Usuń z obiektu w localStorage
+                if (savedTemplates.hasOwnProperty(templateName)) {
+                    delete savedTemplates[templateName]; 
+                    localStorage.setItem(VAGRANT_TEMPLATES_KEY, JSON.stringify(savedTemplates)); // Zapisz zmiany
+                    deleted = true;
+                }
+                
+                if (deleted) {
+                    populateTemplateSelect(); // Odśwież listę
+                    alert(`Template "${templateName}" deleted.`);
+                } else {
+                    alert(`Template "${templateName}" not found in user templates.`);
+                }
+            }
+        }
+
+
+        // --- FUNKCJE Z DOLNYCH PRZYCISKÓW ---
+
+        /**
+         * Leczy Traumę i Rany wszystkim postaciom na scenie.
+         */
+        function healAll() {
+            if (confirm('Heal all Trauma and Wounds for all characters?')) {
+                allCharacters.forEach(char => {
+                    char.trauma = 0;
+                    char.wound = 0;
+                });
+                saveAllCharacters();
+                renderAllCharacters(); // Przerenderuj, aby zaktualizować paski życia
+            }
+        }
+
+        /**
+         * Usuwa WSZYSTKIE postacie ze sceny (po potwierdzeniu).
+         */
+        function clearAll() {
+            if (confirm('WARNING: This will delete ALL characters. Are you sure?')) {
+                allCharacters = []; // Wyczyść tablicę postaci
+                saveAllCharacters();
+                renderAllCharacters(); // Przerenderuj (pokaże pustą scenę)
+            }
+        }
+
+        /**
+         * Resetuje CAŁĄ stronę - usuwa postacie i szablony z localStorage.
+         */
+        function resetPage() {
+            if (confirm('WARNING: This will reset the entire page, deleting all characters AND imported templates. Are you sure?')) {
+                localStorage.clear(); // Wyczyść wszystko z localStorage
+                location.reload(); // Przeładuj stronę
+            }
+        }
+
+        /**
+         * Pokazuje okienko informacyjne.
+         */
+        function showInfo() {
+            alert('Vagrant RPS v1.0\nCreated by Genpiusz\n\nInfo panel coming soon.');
+        }
+        
+        // --- RENDEROWANIE (RYSOWANIE) KART ---
+
+        /**
+         * Helper: Generuje HTML dla pojedynczego elementu atrybutu.
+         * @param {object} char - Obiekt postaci.
+         * @param {number} index - Indeks postaci.
+         * @param {string} key - Klucz atrybutu (np. 'strength').
+         * @param {string} label - Etykieta (np. 'STRENGTH').
+         * @returns {string} - Kod HTML.
+         */
+        function renderAttributeItem(char, index, key, label) {
+            const value = char[key] || 0;
+            
+            // Czy atrybut powinien mieć znak '+' (np. +1, +0, -1)
+            const isSigned = (key !== 'vitality' && key !== 'armor');
+            const sign = isSigned && value >= 0 ? '+' : '';
+            
+            // Klasa 'locked' lub '' w zależności od trybu edycji
+            const initialModeClass = char.editMode === 'locked' ? 'locked' : '';
+
+            // Czy na atrybut można rzucać (wszystkie oprócz VITALITY i ARMOR)
+            const isRollable = (key !== 'vitality' && key !== 'armor');
+            const rollOnClick = isRollable ? `rollDice(${index}, '${key}')` : '';
+            const rollCursorClass = isRollable ? 'rollable' : '';
+            
+            return `
+                <div class="attribute-item ${initialModeClass}">
+                    <label title="${label} (${key})">${label}</label>
+                    <span class="attribute-value ${rollCursorClass}" id="${key}ValueDisplay-${index}" onclick="${rollOnClick}">${sign}${value}</span>
+                    <input type="number" 
+                        id="${key}-${index}" 
+                        value="${value}" 
+                        oninput="updateAttribute(${index}, '${key}', this)"
+                        onclick="selectContent(this)"> 
+                </div>
+            `;
+        }
+
+        /**
+         * Generuje pełny kod HTML dla jednej karty postaci.
+         * @param {object} char - Obiekt postaci.
+         * @param {number} index - Indeks postaci.
+         * @returns {string} - Kod HTML karty.
+         */
+        function renderCharacterCard(char, index) {
+            // Klasy dla aktywnych statusów
+            const statusFire = char.statusFire === 'on' ? 'active fire' : '';
+            const statusIce = char.statusIce === 'on' ? 'active ice' : '';
+            const statusPoison = char.statusPoison === 'on' ? 'active poison' : '';
+            
+            // Klasa i ikona dla trybu edycji
+            const editModeClass = char.editMode === 'locked' ? 'locked' : '';
+            const lockIcon = char.editMode === 'locked' ? '🔒' : '🔓';
+            
+            // Ustalenie koloru ramki karty na podstawie zapisanego indeksu
+            const initialColorIndex = char.cardColorIndex !== undefined ? parseInt(char.cardColorIndex) : 0;
+            const initialColor = CARD_COLORS[initialColorIndex] || CARD_COLORS[0];
+            const cardStyle = `border: 4px solid ${initialColor}; box-shadow: 0 0 10px ${initialColor};`;
+
+            // Wygenerowanie rzędów atrybutów za pomocą funkcji renderAttributeItem
+            const attributesRow1 = [
+                { key: 'vitality', label: 'VITALITY' },
+                { key: 'perception', label: 'PERCEPTION' },
+                { key: 'strength', label: 'STRENGTH' },
+                { key: 'dexterity', label: 'DEXTERITY' },
+                { key: 'agility', label: 'AGILITY' }
+            ].map(attr => renderAttributeItem(char, index, attr.key, attr.label)).join('');
+
+            const attributesRow2 = [
+                { key: 'armor', label: 'ARMOR' },
+                { key: 'charisma', label: 'CHARISMA' },
+                { key: 'potential', label: 'POTENTIAL' },
+                { key: 'stability', label: 'STABILITY' },
+                { key: 'reason', label: 'REASON' }
+            ].map(attr => renderAttributeItem(char, index, attr.key, attr.label)).join('');
+            
+            // Zabezpieczenie nazwy (gdyby zawierała cudzysłów)
+            const charName = char.name.replace(/"/g, '\\"'); 
+
+            // Złożenie pełnego HTML karty
+            return `
+                <div class="card" data-index="${index}" style="${cardStyle}">
+                    <div class="card-header">
+                        <div class="card-buttons-left">
+                            <button class="top-action-button" onclick="moveCharacter(${index}, -1)" title="Move Up">🔼</button>
+                        </div>
+                        
+                        <div class="input-name ${editModeClass}" id="inputNameContainer-${index}" onclick="if (allCharacters[${index}].editMode === 'locked') toggleAttributeSection(${index})">
+                            <input type="text" id="name-${index}" value="${char.name}" placeholder="Character Name" oninput="updateName(${index}, this)">
+                            <span class="display-name" id="displayName-${index}">${char.name}</span>
+                        </div>
+                        
+                        <div class="card-buttons-top">
+                            <button class="top-action-button" onclick="moveCharacter(${index}, 1)" title="Move Down">🔽</button>
+                        </div>
+                    </div>
+
+                    <div class="health-bar-display">
+                        <div class="health-bar-container" id="healthBarContainer-${index}"> 
+                            <span class="value-overlay current-vitality-display" id="currentVitalityDisplay-${index}"></span>
+                            <div class="damage-bar trauma-wound-bar" id="traumaWoundBar-${index}" title="Trauma + Wound"></div>
+                            <div class="damage-bar wound-bar" id="woundBar-${index}" title="Wound">
+                                <span class="value-overlay wound-value-display" id="woundValueDisplay-${index}"></span>
+                            </div>
+                            <span class="value-overlay trauma-value-display" id="traumaValueDisplay-${index}"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="control-row-main">
+                        <button class="mod-button" onclick="changeValue(${index}, 'trauma', 1)" title="Increase Trauma">⚕
+						💀</button>
+                        <button class="mod-button" onclick="changeValue(${index}, 'trauma', -1)" title="Decrease Trauma">⚕
+						➕</button>
+                        |
+                        <button class="status-button ${statusFire}" id="btn-fire-${index}" onclick="toggleStatus(${index}, 'fire')" title="Toggle Fire Status">🔥</button>
+                        <button class="status-button ${statusIce}" id="btn-ice-${index}" onclick="toggleStatus(${index}, 'ice')" title="Toggle Ice Status">❄</button>
+                        <button class="status-button ${statusPoison}" id="btn-poison-${index}" onclick="toggleStatus(${index}, 'poison')" title="Toggle Poison Status">☣</button>
+                        |
+                        <button class="mod-button" onclick="changeValue(${index}, 'wound', 1)" title="Take Wound">🩸
+						💧</button>
+                        <button class="mod-button" onclick="changeValue(${index}, 'wound', -1)" title="Heal Wound">🩸
+						➕</button>
+                    </div>
+
+                    <div class="attribute-section" id="attributeSection-${index}">
+                        <div class="attribute-row">${attributesRow1}</div>
+                        <div class="attribute-row">${attributesRow2}</div>
+                        
+                        <div class="attribute-buttons">
+                            <button class="top-action-button" onclick="exportSingleCharacter(${index})" title="Save Character to file">💾</button>
+                            <button class="top-action-button" onclick="deleteCharacter(${index})" title="Delete Character">🗑</button>
+                            <button class="top-action-button" onclick="applyTemplateConfirmation(${index})" title="Apply Template">✨</button>
+                            <button class="top-action-button" onclick="flatRoll(${index})" title="Flat Roll 🎲">🎲</button>
+                            <button class="top-action-button" onclick="toggleCardColor(${index})" title="Change Card Color">🎨</button>
+                            <button class="top-action-button" id="editModeToggle-${index}" onclick="toggleEditMode(${index}, 'toggle')" title="Toggle Edit Lock">${lockIcon}</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * Główna funkcja renderująca. Czyści kontener i renderuje wszystkie postacie od nowa.
+         */
+        function renderAllCharacters() {
+            const container = document.getElementById('characterContainer');
+            
+            // Zbudowanie całego HTML dla wszystkich kart
+            let allCardsHtml = '';
+            allCharacters.forEach((char, index) => {
+                allCardsHtml += renderCharacterCard(char, index);
+            });
+            // Wstawienie HTML do kontenera (szybsze niż dodawanie po jednej karcie)
+            container.innerHTML = allCardsHtml;
+
+            // Po wyrenderowaniu, musimy zaktualizować paski życia i tryby edycji
+            allCharacters.forEach((char, index) => {
+                setTimeout(() => updateHealthBar(index), 0); // Pasek życia (w timeout, aby DOM zdążył się "uspokoić")
+                toggleEditMode(index, char.editMode); // Ustawienie trybu kłódki
+            });
+            
+            // Aktualizacja przycisku trybu rzutu w nagłówku
+            document.getElementById('rollModeToggleHeader').textContent = rollMode.replace('2d12', 'd12');
+        }
+        
+        /**
+         * Tworzy nowy obiekt postaci i dodaje go do tablicy allCharacters.
+         * @param {object} [data={}] - Dane szablonu (opcjonalne).
+         */
+        function createNewCharacter(data = {}) {
+            // Połączenie domyślnych atrybutów z danymi szablonu
+            const templateData = { ...DEFAULT_ATTRIBUTES, ...data };
+            
+            // Stworzenie obiektu nowej postaci
+            const newChar = {
+                name: templateData.name || 'New Character', 
+                vitality: templateData.vitality !== undefined ? templateData.vitality : DEFAULT_VITALITY,
+                trauma: 0, // Zawsze 0 na starcie
+                wound: 0, // Zawsze 0 na starcie
+                statusFire: templateData.statusFire || 'off',
+                statusIce: templateData.statusIce || 'off',
+                statusPoison: templateData.statusPoison || 'off',
+                editMode: templateData.editMode || 'locked',
+                
+                cardColorIndex: 0, // Domyślny kolor ramki
+                
+                // Kopiowanie atrybutów
+                perception: templateData.perception,
+                strength: templateData.strength,
+                dexterity: templateData.dexterity,
+                agility: templateData.agility,
+                armor: templateData.armor,
+                charisma: templateData.charisma,
+                potential: templateData.potential,
+                stability: templateData.stability,
+                reason: templateData.reason
+            };
+            allCharacters.push(newChar); // Dodanie do tablicy
+            saveAllCharacters();
+            renderAllCharacters();
+        }
+
+        /**
+         * Usuwa postać z tablicy (po potwierdzeniu).
+         * @param {number} index - Indeks postaci do usunięcia.
+         */
+        function deleteCharacter(index) {
+            if (confirm(`Confirm deletion: ${allCharacters[index].name}?`)) {
+                allCharacters.splice(index, 1); // Usunięcie z tablicy
+                saveAllCharacters();
+                renderAllCharacters();
+            }
+        }
+        
+        // --- LOGIKA EKSPORTU / IMPORTU / ZAPISU ---
+
+        /**
+         * Zapisuje całą tablicę allCharacters do localStorage.
+         */
+        function saveAllCharacters() { 
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(allCharacters)); 
+        }
+
+        /**
+         * Wczytuje postacie z localStorage przy ładowaniu strony.
+         */
+        function loadAllCharacters() {
+            const data = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY));
+            if (data && data.length > 0) {
+                // Mapowanie danych dla kompatybilności wstecznej
+                allCharacters = data.map(char => {
+                    // Usunięcie starych, nieużywanych kluczy (jeśli istnieją)
+                    const { nameShadowColorIndex, ...rest } = char;
+                    
+                    // Upewnienie się, że nowe klucze (jak cardColorIndex) istnieją
+                    if (rest.cardColorIndex === undefined) {
+                        rest.cardColorIndex = 0; // Domyślny kolor
+                    }
+                    
+                    return rest;
+                });
+            } else {
+                allCharacters = []; // Pusta tablica, jeśli nic nie ma w localStorage
+            }
+            renderAllCharacters(); // Renderowanie wczytanych postaci
+        }
+
+        /**
+         * Eksportuje WSZYSTKIE postacie ze sceny do pliku .json.
+         */
+        function exportCharacters() { 
+            // Eksport jako tablica (oczyszczona ze starych kluczy)
+            const dataToExport = allCharacters.map(char => {
+                const { nameShadowColorIndex, ...rest } = char;
+                return rest;
+            });
+            
+            // Formatowany JSON (null, 2) dla czytelności
+            const data = JSON.stringify(dataToExport, null, 2); 
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); // Niewidzialny link
+            a.href = url;
+            a.download = 'allCharactersData.json'; // Nazwa pliku
+            document.body.appendChild(a);
+            a.click(); // Symulacja kliknięcia
+            document.body.removeChild(a); // Usunięcie linku
+        }
+
+        /**
+         * Eksportuje JEDNĄ postać do pliku .json.
+         * @param {number} index - Indeks postaci do eksportu.
+         */
+        function exportSingleCharacter(index) {
+            let char = allCharacters[index];
+            if (!char) return;
+            
+            // Oczyszczenie obiektu
+            const { nameShadowColorIndex, ...charToExport } = char;
+            
+            // ZAPIS JAKO TABLICA JEDNEGO ELEMENTU (dla kompatybilności z importAllCharacters)
+            const data = JSON.stringify([charToExport], null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            // Nazwa pliku na podstawie nazwy postaci
+            const fileName = (char.name.replace(/[^a-z0-9]/gi, '_') || 'character') + '.json';
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        /**
+         * Importuje postacie z pliku .json (scenę lub pojedynczą postać).
+         * @param {Event} event - Zdarzenie 'onchange' z inputu pliku.
+         */
+        function importAllCharacters(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = e.target.result;
+                    const parsedData = JSON.parse(data); // Plik musi być tablicą
+
+                    if (!Array.isArray(parsedData) || parsedData.length === 0) { 
+                         throw new Error('Invalid file format. Data must be an array of characters.'); 
+                    }
+                    
+                    // Oczyszczenie importowanych danych (kompatybilność)
+                    const cleanedData = parsedData.map(char => {
+                        const { nameShadowColorIndex, ...rest } = char;
+                        if (rest.cardColorIndex === undefined) {
+                            rest.cardColorIndex = 0; 
+                        }
+                        return rest;
+                    });
+                    
+                    let charactersToAdd = [];
+                    let actionText = '';
+                    
+                    if (cleanedData.length === 1) {
+                        // Jeśli plik zawiera tylko 1 postać
+                        charactersToAdd = cleanedData;
+                        actionText = `one character ("${cleanedData[0].name}") to the current scene`;
+                    } else {
+                        // Jeśli plik zawiera scenę (wiele postaci)
+                        charactersToAdd = cleanedData;
+                        actionText = `${cleanedData.length} characters (replacing the current scene)`;
+                    }
+
+                    // Potwierdzenie od użytkownika
+                    if (confirm(`Do you want to load the file? This will add ${actionText}.`)) {
+                        if (cleanedData.length === 1) {
+                            // DODANIE jednej postaci do istniejącej listy
+                            allCharacters.push(charactersToAdd[0]);
+                        } else {
+                            // NADPISANIE sceny wieloma postaciami
+                            allCharacters = charactersToAdd;
+                        }
+                        
+                        saveAllCharacters();
+                        renderAllCharacters();
+                        alert(`Successfully loaded ${cleanedData.length} character(s)!`);
+                    }
+                } catch (error) { 
+                    alert('Loading error: ' + error.message); 
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset inputu
+        }
+
+
+        // --- INICJALIZACJA STRONY ---
+        
+        // Wywołane po załadowaniu całej strony
+        window.onload = () => {
+            loadAndMergeTemplates(); // Załaduj szablony (domyślne + użytkownika)
+            populateTemplateSelect(); // Wypełnij listę rozwijaną
+            loadAllCharacters(); // Wczytaj zapisane postacie
+        };
+    </script>
+</body>
+</html>
